@@ -32,6 +32,7 @@ body {
   color: var(--ink);
   background: var(--bg);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 button {
@@ -40,6 +41,7 @@ button {
   border: none;
   background: none;
   color: inherit;
+  touch-action: manipulation;
 }
 
 .is-hidden {

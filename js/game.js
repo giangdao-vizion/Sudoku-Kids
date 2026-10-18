@@ -388,6 +388,12 @@
     return false;
   }
 
+  function showNumpadHints() {
+    // Chỉ gợi ý số khả dụng ở Easy (hoặc bảng nhỏ không có độ khó).
+    // Medium/Hard không làm mờ số đã dùng để tránh lộ đáp án.
+    return !needsDifficulty(state.sizeKey) || state.difficulty === "easy";
+  }
+
   function renderNumpad() {
     const padClass =
       state.maxNum <= 2
@@ -401,7 +407,9 @@
     el.numpad.innerHTML = "";
 
     const used =
-      state.selected >= 0 && !state.given[state.selected]
+      showNumpadHints() &&
+      state.selected >= 0 &&
+      !state.given[state.selected]
         ? usedNumbersInUnit(state.selected)
         : new Set();
 
@@ -655,6 +663,20 @@
   el.btnUndo.addEventListener("click", undoMove);
   el.btnPause.addEventListener("click", pauseGame);
   el.btnResume.addEventListener("click", resumeGame);
+
+  // Chặn double-tap zoom trên mobile (iOS Safari vẫn có thể zoom dù đã có touch-action).
+  let lastTouchEnd = 0;
+  document.addEventListener(
+    "touchend",
+    (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    },
+    { passive: false }
+  );
 
   refreshHomeScore();
   updateHomeSelection();
