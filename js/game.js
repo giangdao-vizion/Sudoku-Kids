@@ -7,7 +7,6 @@
 
   const DIFFICULTY_CLUES = {
     "4x4": { easy: 10, medium: 8, hard: 6 },
-    "6x6": { easy: 22, medium: 16, hard: 12 },
     "9x9": { easy: 42, medium: 32, hard: 24 },
   };
 
@@ -20,7 +19,6 @@
     "2x2": { rows: 2, cols: 2, maxNum: 2, boxRows: 1, boxCols: 1 },
     "3x3": { rows: 3, cols: 3, maxNum: 3, boxRows: 1, boxCols: 1 },
     "4x4": { rows: 4, cols: 4, maxNum: 4, boxRows: 2, boxCols: 2 },
-    "6x6": { rows: 6, cols: 6, maxNum: 6, boxRows: 2, boxCols: 3 },
     "9x9": { rows: 9, cols: 9, maxNum: 9, boxRows: 3, boxCols: 3 },
   };
 
@@ -28,7 +26,6 @@
     "2x2": 20,
     "3x3": 40,
     "4x4": 80,
-    "6x6": 140,
     "9x9": 220,
   };
 
@@ -114,7 +111,7 @@
   }
 
   function needsDifficulty(sizeKey) {
-    return sizeKey === "4x4" || sizeKey === "6x6" || sizeKey === "9x9";
+    return sizeKey === "4x4" || sizeKey === "9x9";
   }
 
   function regionTone(r, c) {
@@ -190,16 +187,6 @@
         for (let r = 0; r < 3; r += 1) {
           for (let c = 0; c < 3; c += 1) {
             grid[idx(b * 3 + r, b * 3 + c)] = nums[k++];
-          }
-        }
-      }
-    } else if (state.rows === 6) {
-      for (let bc = 0; bc < 2; bc += 1) {
-        const nums = shuffle([1, 2, 3, 4, 5, 6]);
-        let k = 0;
-        for (let r = 0; r < 2; r += 1) {
-          for (let c = 0; c < 3; c += 1) {
-            grid[idx(r, bc * 3 + c)] = nums[k++];
           }
         }
       }
@@ -416,9 +403,7 @@
           ? "numpad--3"
           : state.maxNum === 4
             ? "numpad--4"
-            : state.maxNum === 6
-              ? "numpad--6"
-              : "numpad--9";
+            : "numpad--9";
     el.numpad.className = `numpad ${padClass}`;
     el.numpad.innerHTML = "";
 
@@ -447,7 +432,6 @@
     if (state.sizeKey === "2x2") el.board.classList.add("board--2");
     else if (state.sizeKey === "3x3") el.board.classList.add("board--3");
     else if (state.sizeKey === "4x4") el.board.classList.add("board--4");
-    else if (state.sizeKey === "6x6") el.board.classList.add("board--6");
     else el.board.classList.add("board--9");
 
     const hasRegions = state.boxRows > 1 || state.boxCols > 1;
