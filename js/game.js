@@ -6,13 +6,17 @@
   const MAX_HINTS = 3;
 
   const DIFFICULTY_CLUES = {
+    "2x2": { easy: 2, medium: 1 },
+    "3x3": { easy: 5, medium: 3 },
     "4x4": { easy: 10, medium: 8, hard: 6 },
     "9x9": { easy: 42, medium: 32, hard: 24 },
   };
 
-  const SIMPLE_CLUES = {
-    "2x2": { min: 1, max: 2 },
-    "3x3": { min: 3, max: 5 },
+  const DIFFICULTIES_BY_SIZE = {
+    "2x2": ["easy", "medium"],
+    "3x3": ["easy", "medium"],
+    "4x4": ["easy", "medium", "hard"],
+    "9x9": ["easy", "medium", "hard"],
   };
 
   const SIZE_CONFIG = {
@@ -110,8 +114,12 @@
     el.homeScoreValue.textContent = String(stats.totalScore);
   }
 
-  function needsDifficulty(sizeKey) {
-    return sizeKey === "4x4" || sizeKey === "9x9";
+  function availableDifficulties(sizeKey) {
+    return DIFFICULTIES_BY_SIZE[sizeKey] || ["easy"];
+  }
+
+  function isDifficultyAllowed(sizeKey, difficulty) {
+    return availableDifficulties(sizeKey).includes(difficulty);
   }
 
   function shuffle(arr) {
@@ -206,18 +214,12 @@
   function carvePuzzle(solution) {
     const puzzle = solution.slice();
     const positions = shuffle([...Array(puzzle.length)].map((_, i) => i));
+    const cluesByDiff = DIFFICULTY_CLUES[state.sizeKey] || {};
+    const targetClues =
+      cluesByDiff[state.difficulty] ??
+      cluesByDiff.easy ??
+      Math.max(1, Math.floor(puzzle.length / 2));
 
-    if (!needsDifficulty(state.sizeKey)) {
-      const range = SIMPLE_CLUES[state.sizeKey];
-      const keep = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-      const removeCount = puzzle.length - keep;
-      for (let i = 0; i < removeCount; i += 1) {
-        puzzle[positions[i]] = 0;
-      }
-      return puzzle;
-    }
-
-    const targetClues = DIFFICULTY_CLUES[state.sizeKey][state.difficulty];
     let clues = puzzle.length;
     for (const pos of positions) {
       if (clues <= targetClues) break;
@@ -294,16 +296,23 @@
       btn.classList.toggle("is-selected", btn.dataset.size === state.sizeKey);
     });
 
-    const showDiff = needsDifficulty(state.sizeKey);
+    const showDiff = Boolean(state.sizeKey);
     el.difficultyBlock.classList.toggle("is-hidden", !showDiff);
 
+    const allowed = state.sizeKey ? availableDifficulties(state.sizeKey) : [];
+    el.difficultyBlock.classList.toggle("difficulty-block--two", allowed.length === 2);
+
     document.querySelectorAll(".diff-btn").forEach((btn) => {
-      btn.classList.toggle("is-selected", btn.dataset.diff === state.difficulty);
+      const allowedHere = allowed.includes(btn.dataset.diff);
+      btn.classList.toggle("is-hidden", !allowedHere);
+      btn.classList.toggle(
+        "is-selected",
+        allowedHere && btn.dataset.diff === state.difficulty
+      );
     });
 
     const canStart =
-      state.sizeKey &&
-      (!needsDifficulty(state.sizeKey) || state.difficulty);
+      state.sizeKey && isDifficultyAllowed(state.sizeKey, state.difficulty);
     el.btnStart.classList.toggle("is-hidden", !canStart);
   }
 
@@ -389,9 +398,8 @@
   }
 
   function showNumpadHints() {
-    // Chỉ gợi ý số khả dụng ở Easy (hoặc bảng nhỏ không có độ khó).
-    // Medium/Hard không làm mờ số đã dùng để tránh lộ đáp án.
-    return !needsDifficulty(state.sizeKey) || state.difficulty === "easy";
+    // Chỉ gợi ý số khả dụng ở Easy. Medium/Hard không làm mờ để tránh lộ đáp án.
+    return state.difficulty === "easy";
   }
 
   function renderNumpad() {
@@ -617,7 +625,7 @@
   function startGame() {
     configureBoard(state.sizeKey, state.difficulty);
     el.metaSize.textContent = state.sizeKey.replace("x", "×");
-    el.metaDiff.textContent = needsDifficulty(state.sizeKey)
+    el.metaDiff.textContent = state.difficulty
       ? state.difficulty.charAt(0).toUpperCase() + state.difficulty.slice(1)
       : "—";
     hideModals();
@@ -638,14 +646,17 @@
   document.querySelectorAll(".size-card").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.sizeKey = btn.dataset.size;
-      if (!needsDifficulty(state.sizeKey)) state.difficulty = null;
-      else if (!state.difficulty) state.difficulty = "easy";
+      if (!isDifficultyAllowed(state.sizeKey, state.difficulty)) {
+        state.difficulty = availableDifficulties(state.sizeKey)[0];
+      }
       updateHomeSelection();
     });
   });
 
   document.querySelectorAll(".diff-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
+      if (!state.sizeKey) return;
+      if (!isDifficultyAllowed(state.sizeKey, btn.dataset.diff)) return;
       state.difficulty = btn.dataset.diff;
       updateHomeSelection();
     });
