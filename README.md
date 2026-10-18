@@ -20,11 +20,13 @@ Rồi vào `http://localhost:8080`.
 
 ## Tính năng
 
-- Màn hình Home chọn bảng: **1×4**, **1×9**, **4×4**, **9×9**
-  - **1×4**: lưới **2 hàng × 2 ô**, **1 khu** (số 1–2)
-  - **1×9**: lưới **3 hàng × 3 ô**, **1 khu** (số 1–3)
-  - **4×4** / **9×9**: Sudoku chuẩn, nhiều khối 2×2 / 3×3 tô màu xen kẽ
-- **4×4** và **9×9** có chế độ **Easy / Medium / Hard**
+- Màn hình Home chọn bảng: **2×2**, **3×3**, **4×4**, **6×6**, **9×9**
+  - **2×2**: **1 khu**, số 1–2
+  - **3×3**: **1 khu**, số 1–3
+  - **4×4**: khối 2×2, số 1–4
+  - **6×6**: khối 2×3, số 1–6
+  - **9×9**: khối 3×3, số 1–9
+- **4×4**, **6×6** và **9×9** có chế độ **Easy / Medium / Hard**
 - Nút **Gợi ý** khi đang chơi
 - Chạm vào ô trống → hiện các số có thể chọn (không cần nhập bàn phím)
 - Giao diện mobile-first, nút to, màu sắc vui nhộn, phù hợp trẻ nhỏ

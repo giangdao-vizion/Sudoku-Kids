@@ -159,6 +159,10 @@ button {
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.size-card--wide {
+  grid-column: 1 / -1;
+}
+
 .size-card:active {
   transform: scale(0.97);
 }
@@ -216,6 +220,7 @@ button {
 }
 
 .size-card__preview--grid4,
+.size-card__preview--grid6,
 .size-card__preview--grid9 {
   width: 42px;
   height: 42px;
@@ -242,6 +247,17 @@ button {
     linear-gradient(var(--ink) 0 0) center/100% 1px no-repeat,
     linear-gradient(var(--ink) 0 0) center/1px 100% no-repeat;
   opacity: 0.35;
+}
+
+.size-card__preview--grid6 {
+  background:
+    linear-gradient(var(--ink) 0 0) 50% / 2px 100% no-repeat,
+    linear-gradient(var(--ink) 0 0) 0 33% / 100% 2px no-repeat,
+    linear-gradient(var(--ink) 0 0) 0 66% / 100% 2px no-repeat,
+    repeating-conic-gradient(
+      #b8ebff 0% 25%,
+      #ffe29a 0% 50%
+    ) 0 0 / 50% 33.333%;
 }
 
 .size-card__preview--grid9 {
@@ -471,6 +487,19 @@ button {
     var(--ink);
 }
 
+.board--6 {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 14px;
+  /* boxes are 2×3: vertical split at 50%, horizontal at 33% / 66% */
+  background:
+    linear-gradient(var(--ink), var(--ink)) 50% / 4px 100% no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 0 33.333% / 100% 4px no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 0 66.666% / 100% 4px no-repeat,
+    var(--ink);
+}
+
 .board--9 {
   grid-template-columns: repeat(9, 1fr);
   gap: 2px;
@@ -528,6 +557,11 @@ button {
 
 .board--4 .cell {
   border-radius: 10px;
+}
+
+.board--6 .cell {
+  border-radius: 8px;
+  font-size: clamp(1rem, 4.5vw, 1.35rem);
 }
 
 .board--9 .cell {
@@ -650,6 +684,10 @@ button {
 
 .picker__nums--4 {
   grid-template-columns: repeat(4, 1fr);
+}
+
+.picker__nums--6 {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .picker__nums--9 {

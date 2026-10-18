@@ -3,22 +3,24 @@
 
   const DIFFICULTY_CLUES = {
     "4x4": { easy: 10, medium: 8, hard: 6 },
+    "6x6": { easy: 22, medium: 16, hard: 12 },
     "9x9": { easy: 42, medium: 32, hard: 24 },
   };
 
   const SIMPLE_CLUES = {
-    "1x4": { min: 1, max: 2 },
-    "1x9": { min: 3, max: 5 },
+    "2x2": { min: 1, max: 2 },
+    "3x3": { min: 3, max: 5 },
   };
 
-  /** sizeKey -> actual board geometry
-   *  1×4 = 2 hàng × 2 cột (1 khu, số 1–2)
-   *  1×9 = 3 hàng × 3 cột (1 khu, số 1–3)
+  /** sizeKey -> board geometry
+   *  2×2 / 3×3: one region (latin square)
+   *  4×4: boxes 2×2 | 6×6: boxes 2×3 | 9×9: boxes 3×3
    */
   const SIZE_CONFIG = {
-    "1x4": { rows: 2, cols: 2, maxNum: 2, boxRows: 1, boxCols: 1 },
-    "1x9": { rows: 3, cols: 3, maxNum: 3, boxRows: 1, boxCols: 1 },
+    "2x2": { rows: 2, cols: 2, maxNum: 2, boxRows: 1, boxCols: 1 },
+    "3x3": { rows: 3, cols: 3, maxNum: 3, boxRows: 1, boxCols: 1 },
     "4x4": { rows: 4, cols: 4, maxNum: 4, boxRows: 2, boxCols: 2 },
+    "6x6": { rows: 6, cols: 6, maxNum: 6, boxRows: 2, boxCols: 3 },
     "9x9": { rows: 9, cols: 9, maxNum: 9, boxRows: 3, boxCols: 3 },
   };
 
@@ -57,7 +59,7 @@
   };
 
   function needsDifficulty(sizeKey) {
-    return sizeKey === "4x4" || sizeKey === "9x9";
+    return sizeKey === "4x4" || sizeKey === "6x6" || sizeKey === "9x9";
   }
 
   function regionTone(r, c) {
@@ -121,13 +123,13 @@
   function generateSquareSolution() {
     const grid = Array(state.rows * state.cols).fill(0);
 
-    // Mini boards (1×4 / 1×9): one region only — latin square by rows & cols
+    // Mini boards (2×2 / 3×3): one region only — latin square by rows & cols
     if (state.boxRows <= 1 && state.boxCols <= 1) {
       solveGrid(grid);
       return grid;
     }
 
-    // Seed diagonal boxes for faster fill on 4×4 / 9×9
+    // Seed boxes for faster fill
     if (state.rows === 9) {
       for (let b = 0; b < 3; b += 1) {
         const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -135,6 +137,17 @@
         for (let r = 0; r < 3; r += 1) {
           for (let c = 0; c < 3; c += 1) {
             grid[idx(b * 3 + r, b * 3 + c)] = nums[k++];
+          }
+        }
+      }
+    } else if (state.rows === 6) {
+      // Fill first band of 2×3 boxes
+      for (let bc = 0; bc < 2; bc += 1) {
+        const nums = shuffle([1, 2, 3, 4, 5, 6]);
+        let k = 0;
+        for (let r = 0; r < 2; r += 1) {
+          for (let c = 0; c < 3; c += 1) {
+            grid[idx(r, bc * 3 + c)] = nums[k++];
           }
         }
       }
@@ -289,9 +302,11 @@
         ? "picker__nums--2"
         : state.maxNum === 3
           ? "picker__nums--3"
-          : state.maxNum <= 4
+          : state.maxNum === 4
             ? "picker__nums--4"
-            : "picker__nums--9";
+            : state.maxNum === 6
+              ? "picker__nums--6"
+              : "picker__nums--9";
     el.pickerNums.className = `picker__nums ${pickerClass}`;
     el.pickerNums.innerHTML = "";
 
@@ -316,12 +331,14 @@
     el.board.innerHTML = "";
     el.board.className = "board";
 
-    if (state.sizeKey === "1x4") {
+    if (state.sizeKey === "2x2") {
       el.board.classList.add("board--2");
-    } else if (state.sizeKey === "1x9") {
+    } else if (state.sizeKey === "3x3") {
       el.board.classList.add("board--3");
-    } else if (state.rows === 4) {
+    } else if (state.sizeKey === "4x4") {
       el.board.classList.add("board--4");
+    } else if (state.sizeKey === "6x6") {
+      el.board.classList.add("board--6");
     } else {
       el.board.classList.add("board--9");
     }
