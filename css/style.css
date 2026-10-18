@@ -278,12 +278,6 @@ button {
   font-size: 1.35rem;
 }
 
-.size-card__hint {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
 .difficulty-block {
   margin-top: 18px;
   animation: rise-in 0.35s ease both;
