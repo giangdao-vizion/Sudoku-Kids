@@ -1,6 +1,10 @@
 (() => {
   "use strict";
 
+  const STORAGE_KEY = "sudoku-kids-v1";
+  const MAX_MISTAKES = 3;
+  const MAX_HINTS = 3;
+
   const DIFFICULTY_CLUES = {
     "4x4": { easy: 10, medium: 8, hard: 6 },
     "6x6": { easy: 22, medium: 16, hard: 12 },
@@ -12,10 +16,6 @@
     "3x3": { min: 3, max: 5 },
   };
 
-  /** sizeKey -> board geometry
-   *  2×2 / 3×3: one region (latin square)
-   *  4×4: boxes 2×2 | 6×6: boxes 2×3 | 9×9: boxes 3×3
-   */
   const SIZE_CONFIG = {
     "2x2": { rows: 2, cols: 2, maxNum: 2, boxRows: 1, boxCols: 1 },
     "3x3": { rows: 3, cols: 3, maxNum: 3, boxRows: 1, boxCols: 1 },
@@ -23,6 +23,16 @@
     "6x6": { rows: 6, cols: 6, maxNum: 6, boxRows: 2, boxCols: 3 },
     "9x9": { rows: 9, cols: 9, maxNum: 9, boxRows: 3, boxCols: 3 },
   };
+
+  const SCORE_BASE = {
+    "2x2": 20,
+    "3x3": 40,
+    "4x4": 80,
+    "6x6": 140,
+    "9x9": 220,
+  };
+
+  const DIFF_MULT = { easy: 1, medium: 1.35, hard: 1.7, none: 1 };
 
   const state = {
     sizeKey: null,
@@ -37,6 +47,14 @@
     board: [],
     given: [],
     selected: -1,
+    history: [],
+    mistakes: 0,
+    hintsLeft: MAX_HINTS,
+    sessionScore: 0,
+    elapsedSec: 0,
+    timerId: null,
+    paused: false,
+    ended: false,
   };
 
   const el = {
@@ -45,18 +63,55 @@
     difficultyBlock: document.getElementById("difficulty-block"),
     btnStart: document.getElementById("btn-start"),
     board: document.getElementById("board"),
-    picker: document.getElementById("picker"),
-    pickerNums: document.getElementById("picker-nums"),
+    numpad: document.getElementById("numpad"),
     metaSize: document.getElementById("meta-size"),
     metaDiff: document.getElementById("meta-diff"),
-    gameTip: document.getElementById("game-tip"),
+    metaMistakes: document.getElementById("meta-mistakes"),
+    metaTimer: document.getElementById("meta-timer"),
+    sessionScore: document.getElementById("session-score"),
+    homeScoreValue: document.getElementById("home-score-value"),
+    hintBadge: document.getElementById("hint-badge"),
     winModal: document.getElementById("win-modal"),
+    pauseModal: document.getElementById("pause-modal"),
+    retryModal: document.getElementById("retry-modal"),
+    winPoints: document.getElementById("win-points"),
+    winMessage: document.getElementById("win-message"),
     btnHint: document.getElementById("btn-hint"),
     btnHome: document.getElementById("btn-home"),
     btnErase: document.getElementById("btn-erase"),
+    btnUndo: document.getElementById("btn-undo"),
+    btnPause: document.getElementById("btn-pause"),
+    btnResume: document.getElementById("btn-resume"),
+    btnPauseHome: document.getElementById("btn-pause-home"),
     btnAgain: document.getElementById("btn-again"),
     btnWinHome: document.getElementById("btn-win-home"),
+    btnRetry: document.getElementById("btn-retry"),
+    btnRetryHome: document.getElementById("btn-retry-home"),
   };
+
+  function loadStats() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { totalScore: 0, bestSession: 0, gamesWon: 0 };
+      const data = JSON.parse(raw);
+      return {
+        totalScore: Number(data.totalScore) || 0,
+        bestSession: Number(data.bestSession) || 0,
+        gamesWon: Number(data.gamesWon) || 0,
+      };
+    } catch {
+      return { totalScore: 0, bestSession: 0, gamesWon: 0 };
+    }
+  }
+
+  function saveStats(stats) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+  }
+
+  function refreshHomeScore() {
+    const stats = loadStats();
+    el.homeScoreValue.textContent = String(stats.totalScore);
+  }
 
   function needsDifficulty(sizeKey) {
     return sizeKey === "4x4" || sizeKey === "6x6" || sizeKey === "9x9";
@@ -123,13 +178,11 @@
   function generateSquareSolution() {
     const grid = Array(state.rows * state.cols).fill(0);
 
-    // Mini boards (2×2 / 3×3): one region only — latin square by rows & cols
     if (state.boxRows <= 1 && state.boxCols <= 1) {
       solveGrid(grid);
       return grid;
     }
 
-    // Seed boxes for faster fill
     if (state.rows === 9) {
       for (let b = 0; b < 3; b += 1) {
         const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -141,7 +194,6 @@
         }
       }
     } else if (state.rows === 6) {
-      // Fill first band of 2×3 boxes
       for (let bc = 0; bc < 2; bc += 1) {
         const nums = shuffle([1, 2, 3, 4, 5, 6]);
         let k = 0;
@@ -185,7 +237,6 @@
       return puzzle;
     }
 
-    // Kids-friendly: remove cells until clue target — keeps generation instant on phones
     const targetClues = DIFFICULTY_CLUES[state.sizeKey][state.difficulty];
     let clues = puzzle.length;
     for (const pos of positions) {
@@ -210,6 +261,52 @@
     state.board = state.puzzle.slice();
     state.given = state.puzzle.map((v) => v !== 0);
     state.selected = -1;
+    state.history = [];
+    state.mistakes = 0;
+    state.hintsLeft = MAX_HINTS;
+    state.sessionScore = 0;
+    state.elapsedSec = 0;
+    state.paused = false;
+    state.ended = false;
+  }
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
+  function stopTimer() {
+    if (state.timerId) {
+      clearInterval(state.timerId);
+      state.timerId = null;
+    }
+  }
+
+  function startTimer() {
+    stopTimer();
+    state.timerId = setInterval(() => {
+      if (state.paused || state.ended) return;
+      state.elapsedSec += 1;
+      el.metaTimer.textContent = formatTime(state.elapsedSec);
+    }, 1000);
+  }
+
+  function updateHud() {
+    el.sessionScore.textContent = String(state.sessionScore);
+    el.metaMistakes.textContent = `${state.mistakes}/${MAX_MISTAKES}`;
+    el.metaTimer.textContent = formatTime(state.elapsedSec);
+    el.hintBadge.textContent = String(state.hintsLeft);
+    el.btnHint.disabled = state.hintsLeft <= 0 || state.ended || state.paused;
+    el.btnUndo.disabled = !state.history.length || state.ended || state.paused;
+    el.btnErase.disabled = state.ended || state.paused;
+    el.btnHint.classList.toggle("is-disabled", el.btnHint.disabled);
+    el.btnUndo.classList.toggle("is-disabled", el.btnUndo.disabled);
+  }
+
+  function addScore(delta) {
+    state.sessionScore = Math.max(0, state.sessionScore + delta);
+    updateHud();
   }
 
   function updateHomeSelection() {
@@ -230,12 +327,19 @@
     el.btnStart.classList.toggle("is-hidden", !canStart);
   }
 
+  function hideModals() {
+    el.winModal.classList.add("is-hidden");
+    el.pauseModal.classList.add("is-hidden");
+    el.retryModal.classList.add("is-hidden");
+  }
+
   function showScreen(name) {
     el.home.classList.toggle("is-hidden", name !== "home");
     el.game.classList.toggle("is-hidden", name !== "game");
     if (name === "home") {
-      el.winModal.classList.add("is-hidden");
-      el.picker.classList.add("is-hidden");
+      hideModals();
+      stopTimer();
+      refreshHomeScore();
     }
   }
 
@@ -246,11 +350,11 @@
       const j = idx(r, i);
       if (j !== index && state.board[j] === value) return true;
     }
-    if (state.rows > 1) {
-      for (let i = 0; i < state.rows; i += 1) {
-        const j = idx(i, c);
-        if (j !== index && state.board[j] === value) return true;
-      }
+    for (let i = 0; i < state.rows; i += 1) {
+      const j = idx(i, c);
+      if (j !== index && state.board[j] === value) return true;
+    }
+    if (state.boxRows > 1 || state.boxCols > 1) {
       const br = Math.floor(r / state.boxRows) * state.boxRows;
       const bc = Math.floor(c / state.boxCols) * state.boxCols;
       for (let rr = br; rr < br + state.boxRows; rr += 1) {
@@ -265,18 +369,18 @@
 
   function usedNumbersInUnit(index) {
     const used = new Set();
+    if (index < 0) return used;
     const { r, c } = cellRC(index);
 
     for (let i = 0; i < state.cols; i += 1) {
       const j = idx(r, i);
       if (j !== index && state.board[j]) used.add(state.board[j]);
     }
-
-    if (state.rows > 1) {
-      for (let i = 0; i < state.rows; i += 1) {
-        const j = idx(i, c);
-        if (j !== index && state.board[j]) used.add(state.board[j]);
-      }
+    for (let i = 0; i < state.rows; i += 1) {
+      const j = idx(i, c);
+      if (j !== index && state.board[j]) used.add(state.board[j]);
+    }
+    if (state.boxRows > 1 || state.boxCols > 1) {
       const br = Math.floor(r / state.boxRows) * state.boxRows;
       const bc = Math.floor(c / state.boxCols) * state.boxCols;
       for (let rr = br; rr < br + state.boxRows; rr += 1) {
@@ -286,31 +390,42 @@
         }
       }
     }
-
     return used;
   }
 
-  function renderPicker() {
-    if (state.selected < 0 || state.given[state.selected]) {
-      el.picker.classList.add("is-hidden");
-      return;
+  function isRelated(i, selected) {
+    if (selected < 0 || i === selected) return false;
+    const a = cellRC(i);
+    const b = cellRC(selected);
+    if (a.r === b.r || a.c === b.c) return true;
+    if (state.boxRows > 1 || state.boxCols > 1) {
+      const brA = Math.floor(a.r / state.boxRows);
+      const bcA = Math.floor(a.c / state.boxCols);
+      const brB = Math.floor(b.r / state.boxRows);
+      const bcB = Math.floor(b.c / state.boxCols);
+      if (brA === brB && bcA === bcB) return true;
     }
+    return false;
+  }
 
-    el.picker.classList.remove("is-hidden");
-    const pickerClass =
+  function renderNumpad() {
+    const padClass =
       state.maxNum <= 2
-        ? "picker__nums--2"
+        ? "numpad--2"
         : state.maxNum === 3
-          ? "picker__nums--3"
+          ? "numpad--3"
           : state.maxNum === 4
-            ? "picker__nums--4"
+            ? "numpad--4"
             : state.maxNum === 6
-              ? "picker__nums--6"
-              : "picker__nums--9";
-    el.pickerNums.className = `picker__nums ${pickerClass}`;
-    el.pickerNums.innerHTML = "";
+              ? "numpad--6"
+              : "numpad--9";
+    el.numpad.className = `numpad ${padClass}`;
+    el.numpad.innerHTML = "";
 
-    const used = usedNumbersInUnit(state.selected);
+    const used =
+      state.selected >= 0 && !state.given[state.selected]
+        ? usedNumbersInUnit(state.selected)
+        : new Set();
 
     for (let n = 1; n <= state.maxNum; n += 1) {
       const btn = document.createElement("button");
@@ -318,12 +433,10 @@
       btn.className = "num-btn";
       btn.textContent = String(n);
       btn.setAttribute("aria-label", `Chọn số ${n}`);
-      if (used.has(n)) {
-        btn.classList.add("is-used");
-        btn.title = "Số này đã có rồi";
-      }
+      if (used.has(n)) btn.classList.add("is-used");
+      btn.disabled = state.ended || state.paused || state.selected < 0 || state.given[state.selected];
       btn.addEventListener("click", () => placeNumber(n));
-      el.pickerNums.appendChild(btn);
+      el.numpad.appendChild(btn);
     }
   }
 
@@ -331,17 +444,11 @@
     el.board.innerHTML = "";
     el.board.className = "board";
 
-    if (state.sizeKey === "2x2") {
-      el.board.classList.add("board--2");
-    } else if (state.sizeKey === "3x3") {
-      el.board.classList.add("board--3");
-    } else if (state.sizeKey === "4x4") {
-      el.board.classList.add("board--4");
-    } else if (state.sizeKey === "6x6") {
-      el.board.classList.add("board--6");
-    } else {
-      el.board.classList.add("board--9");
-    }
+    if (state.sizeKey === "2x2") el.board.classList.add("board--2");
+    else if (state.sizeKey === "3x3") el.board.classList.add("board--3");
+    else if (state.sizeKey === "4x4") el.board.classList.add("board--4");
+    else if (state.sizeKey === "6x6") el.board.classList.add("board--6");
+    else el.board.classList.add("board--9");
 
     const hasRegions = state.boxRows > 1 || state.boxCols > 1;
 
@@ -353,64 +460,76 @@
       cell.setAttribute("role", "gridcell");
 
       const { r, c } = cellRC(i);
-      if (hasRegions) {
-        cell.classList.add(`cell--region-${regionTone(r, c)}`);
-      }
+      if (hasRegions) cell.classList.add(`cell--region-${regionTone(r, c)}`);
 
       const value = state.board[i];
       cell.textContent = value ? String(value) : "";
 
       if (state.given[i]) {
         cell.classList.add("cell--given");
-        cell.setAttribute("aria-label", `Ô có sẵn số ${value}`);
       } else {
         cell.classList.add("cell--editable");
-        cell.setAttribute(
-          "aria-label",
-          value ? `Ô số ${value}, chạm để đổi` : "Ô trống, chạm để chọn số"
-        );
+        if (value) cell.classList.add("cell--user");
       }
 
       if (i === state.selected) cell.classList.add("cell--selected");
+      else if (isRelated(i, state.selected)) cell.classList.add("cell--related");
       if (value && conflictsAt(i, value)) cell.classList.add("cell--bad");
 
       cell.addEventListener("click", () => selectCell(i));
       el.board.appendChild(cell);
     }
 
-    renderPicker();
+    renderNumpad();
+    updateHud();
   }
 
   function selectCell(i) {
+    if (state.ended || state.paused) return;
     if (state.given[i]) {
-      state.selected = -1;
-      el.gameTip.textContent = "Ô này đã có sẵn rồi — chọn ô trống nhé!";
+      state.selected = i;
       renderBoard();
       return;
     }
     state.selected = i;
-    el.gameTip.textContent = "Chọn một số bên dưới nào!";
     renderBoard();
   }
 
+  function pushHistory(index, prev, next) {
+    state.history.push({ index, prev, next });
+    if (state.history.length > 80) state.history.shift();
+  }
+
   function placeNumber(n) {
+    if (state.ended || state.paused) return;
     if (state.selected < 0 || state.given[state.selected]) return;
 
     const i = state.selected;
+    const prev = state.board[i];
+    if (prev === n) return;
+
+    pushHistory(i, prev, n);
     state.board[i] = n;
     renderBoard();
 
     const cell = el.board.querySelector(`[data-index="${i}"]`);
-    if (!cell) return;
+    const wrong = n !== state.solution[i] || conflictsAt(i, n);
 
-    if (conflictsAt(i, n) || n !== state.solution[i]) {
-      cell.classList.add("cell--bad");
-      el.gameTip.textContent = "Úi, thử số khác xem nào!";
+    if (wrong) {
+      if (cell) cell.classList.add("cell--bad");
+      state.mistakes += 1;
+      addScore(-2);
+      updateHud();
+      if (state.mistakes >= MAX_MISTAKES) {
+        state.ended = true;
+        stopTimer();
+        el.retryModal.classList.remove("is-hidden");
+      }
       return;
     }
 
-    cell.classList.add("cell--ok");
-    el.gameTip.textContent = "Đúng rồi! Tiếp tục nào ✨";
+    if (cell) cell.classList.add("cell--ok");
+    addScore(10);
 
     if (isComplete()) {
       setTimeout(showWin, 350);
@@ -418,9 +537,22 @@
   }
 
   function eraseSelected() {
+    if (state.ended || state.paused) return;
     if (state.selected < 0 || state.given[state.selected]) return;
-    state.board[state.selected] = 0;
-    el.gameTip.textContent = "Đã xóa — chọn số mới nhé!";
+    const i = state.selected;
+    const prev = state.board[i];
+    if (!prev) return;
+    pushHistory(i, prev, 0);
+    state.board[i] = 0;
+    renderBoard();
+  }
+
+  function undoMove() {
+    if (state.ended || state.paused) return;
+    const last = state.history.pop();
+    if (!last) return;
+    state.board[last.index] = last.prev;
+    state.selected = last.index;
     renderBoard();
   }
 
@@ -431,67 +563,103 @@
     return true;
   }
 
+  function calcWinBonus() {
+    const base = SCORE_BASE[state.sizeKey] || 50;
+    const mult = DIFF_MULT[state.difficulty || "none"] || 1;
+    const timePenalty = Math.min(40, Math.floor(state.elapsedSec / 15) * 2);
+    const mistakePenalty = state.mistakes * 8;
+    const hintPenalty = (MAX_HINTS - state.hintsLeft) * 10;
+    return Math.max(15, Math.round(base * mult - timePenalty - mistakePenalty - hintPenalty));
+  }
+
   function showWin() {
+    if (state.ended) return;
+    state.ended = true;
+    stopTimer();
+
+    const bonus = calcWinBonus();
+    addScore(bonus);
+
+    const stats = loadStats();
+    stats.totalScore += state.sessionScore;
+    stats.gamesWon += 1;
+    if (state.sessionScore > stats.bestSession) stats.bestSession = state.sessionScore;
+    saveStats(stats);
+
+    el.winPoints.textContent = `+${state.sessionScore} điểm`;
+    el.winMessage.textContent = `Hoàn thành ${state.sizeKey.replace("x", "×")} trong ${formatTime(state.elapsedSec)}!`;
     el.winModal.classList.remove("is-hidden");
-    el.picker.classList.add("is-hidden");
+    refreshHomeScore();
   }
 
   function applyHint() {
+    if (state.ended || state.paused || state.hintsLeft <= 0) return;
+
     const empties = [];
     for (let i = 0; i < state.board.length; i += 1) {
       if (!state.given[i] && state.board[i] !== state.solution[i]) {
         empties.push(i);
       }
     }
-    if (!empties.length) {
-      el.gameTip.textContent = "Không còn ô cần gợi ý nữa!";
-      return;
-    }
+    if (!empties.length) return;
 
     const i = empties[Math.floor(Math.random() * empties.length)];
-    state.board[i] = state.solution[i];
+    const prev = state.board[i];
+    const next = state.solution[i];
+    pushHistory(i, prev, next);
+    state.board[i] = next;
     state.selected = i;
-    el.gameTip.textContent = "Gợi ý đây rồi — bé học theo nhé!";
+    state.hintsLeft -= 1;
+    addScore(-5);
     renderBoard();
 
     const cell = el.board.querySelector(`[data-index="${i}"]`);
     if (cell) cell.classList.add("cell--hint", "cell--ok");
 
-    if (isComplete()) {
-      setTimeout(showWin, 450);
-    }
+    if (isComplete()) setTimeout(showWin, 450);
+  }
+
+  function pauseGame() {
+    if (state.ended) return;
+    state.paused = true;
+    el.pauseModal.classList.remove("is-hidden");
+    updateHud();
+    renderNumpad();
+  }
+
+  function resumeGame() {
+    state.paused = false;
+    el.pauseModal.classList.add("is-hidden");
+    updateHud();
+    renderNumpad();
   }
 
   function startGame() {
     configureBoard(state.sizeKey, state.difficulty);
     el.metaSize.textContent = state.sizeKey.replace("x", "×");
-    if (needsDifficulty(state.sizeKey)) {
-      el.metaDiff.textContent =
-        state.difficulty.charAt(0).toUpperCase() + state.difficulty.slice(1);
-      el.metaDiff.classList.remove("is-hidden");
-    } else {
-      el.metaDiff.classList.add("is-hidden");
-    }
-    el.gameTip.textContent = "Chạm vào ô trống, rồi chọn số nhé!";
-    el.winModal.classList.add("is-hidden");
+    el.metaDiff.textContent = needsDifficulty(state.sizeKey)
+      ? state.difficulty.charAt(0).toUpperCase() + state.difficulty.slice(1)
+      : "—";
+    hideModals();
     showScreen("game");
     renderBoard();
+    startTimer();
+    updateHud();
   }
 
   function goHome() {
+    state.paused = false;
+    state.ended = true;
+    stopTimer();
     showScreen("home");
     updateHomeSelection();
   }
 
-  // Events
   document.querySelectorAll(".size-card").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.sizeKey = btn.dataset.size;
-      if (!needsDifficulty(state.sizeKey)) {
-        state.difficulty = null;
-      } else if (!state.difficulty) {
-        state.difficulty = "easy";
-      }
+      if (!needsDifficulty(state.sizeKey)) state.difficulty = null;
+      else if (!state.difficulty) state.difficulty = "easy";
       updateHomeSelection();
     });
   });
@@ -506,9 +674,16 @@
   el.btnStart.addEventListener("click", startGame);
   el.btnHome.addEventListener("click", goHome);
   el.btnWinHome.addEventListener("click", goHome);
+  el.btnPauseHome.addEventListener("click", goHome);
+  el.btnRetryHome.addEventListener("click", goHome);
   el.btnAgain.addEventListener("click", startGame);
+  el.btnRetry.addEventListener("click", startGame);
   el.btnHint.addEventListener("click", applyHint);
   el.btnErase.addEventListener("click", eraseSelected);
+  el.btnUndo.addEventListener("click", undoMove);
+  el.btnPause.addEventListener("click", pauseGame);
+  el.btnResume.addEventListener("click", resumeGame);
 
+  refreshHomeScore();
   updateHomeSelection();
 })();

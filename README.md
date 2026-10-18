@@ -27,9 +27,9 @@ Rồi vào `http://localhost:8080`.
   - **6×6**: khối 2×3, số 1–6
   - **9×9**: khối 3×3, số 1–9
 - **4×4**, **6×6** và **9×9** có chế độ **Easy / Medium / Hard**
-- Nút **Gợi ý** khi đang chơi
-- Chạm vào ô trống → hiện các số có thể chọn (không cần nhập bàn phím)
-- Giao diện mobile-first, nút to, màu sắc vui nhộn, phù hợp trẻ nhỏ
+- Màn chơi: highlight hàng/cột/khu, numpad cố định, Undo / Xóa / Gợi ý, đồng hồ, lỗi 0/3
+- **Điểm** lưu bằng `localStorage` (không cần backend)
+- Giao diện mobile-first, phù hợp trẻ nhỏ
 
 ## Cấu trúc
 

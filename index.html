@@ -20,6 +20,10 @@
         <p class="brand-mark" aria-hidden="true">★</p>
         <h1 class="brand">Sudoku Kids</h1>
         <p class="tagline">Chơi số vui nhộn cho bé 3–7 tuổi</p>
+        <div class="home-score" id="home-score" aria-label="Điểm đã lưu">
+          <span class="home-score__label">Điểm của bé</span>
+          <strong class="home-score__value" id="home-score-value">0</strong>
+        </div>
       </header>
 
       <div class="home-panel">
@@ -68,39 +72,92 @@
 
     <!-- GAME -->
     <section class="screen screen--game is-hidden" id="screen-game" aria-label="Màn chơi">
-      <header class="game-bar">
-        <button class="btn btn--ghost" id="btn-home" type="button" aria-label="Về trang chủ">← Home</button>
-        <div class="game-meta">
-          <span class="pill" id="meta-size">4×4</span>
-          <span class="pill pill--soft is-hidden" id="meta-diff">Easy</span>
+      <header class="game-top">
+        <button class="icon-btn" id="btn-home" type="button" aria-label="Về trang chủ">←</button>
+        <div class="game-score-wrap">
+          <span class="game-score-label">Điểm</span>
+          <strong class="game-score" id="session-score">0</strong>
         </div>
-        <button class="btn btn--hint" id="btn-hint" type="button">💡 Gợi ý</button>
+        <button class="icon-btn" id="btn-pause" type="button" aria-label="Tạm dừng">❚❚</button>
       </header>
 
-      <p class="game-tip" id="game-tip">Chạm vào ô trống, rồi chọn số nhé!</p>
+      <div class="info-bar" aria-label="Thông tin ván chơi">
+        <div class="info-item">
+          <span class="info-item__label">Bảng</span>
+          <strong id="meta-size">4×4</strong>
+        </div>
+        <div class="info-item">
+          <span class="info-item__label">Độ khó</span>
+          <strong id="meta-diff">—</strong>
+        </div>
+        <div class="info-item">
+          <span class="info-item__label">Lỗi</span>
+          <strong id="meta-mistakes">0/3</strong>
+        </div>
+        <div class="info-item">
+          <span class="info-item__label">Giờ</span>
+          <strong id="meta-timer">00:00</strong>
+        </div>
+      </div>
 
       <div class="board-wrap">
         <div class="board" id="board" role="grid" aria-label="Bảng Sudoku"></div>
       </div>
 
-      <div class="picker is-hidden" id="picker" aria-label="Chọn số">
-        <div class="picker__head">
-          <span class="picker__title">Chọn một số</span>
-          <button class="btn btn--tiny" id="btn-erase" type="button">Xóa</button>
-        </div>
-        <div class="picker__nums" id="picker-nums"></div>
+      <div class="toolbar" role="toolbar" aria-label="Công cụ">
+        <button class="tool-btn" id="btn-undo" type="button">
+          <span class="tool-btn__icon" aria-hidden="true">↺</span>
+          <span>Hoàn tác</span>
+        </button>
+        <button class="tool-btn" id="btn-erase" type="button">
+          <span class="tool-btn__icon" aria-hidden="true">⌫</span>
+          <span>Xóa</span>
+        </button>
+        <button class="tool-btn" id="btn-hint" type="button">
+          <span class="tool-btn__icon" aria-hidden="true">💡</span>
+          <span>Gợi ý</span>
+          <span class="tool-btn__badge" id="hint-badge">3</span>
+        </button>
       </div>
+
+      <div class="numpad" id="numpad" aria-label="Chọn số"></div>
     </section>
+
+    <!-- PAUSE -->
+    <div class="modal is-hidden" id="pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+      <div class="modal__card">
+        <h2 id="pause-title">Tạm dừng</h2>
+        <p>Nghỉ một chút rồi chơi tiếp nhé!</p>
+        <div class="modal__actions">
+          <button class="btn btn--primary" id="btn-resume" type="button">Tiếp tục</button>
+          <button class="btn btn--ghost" id="btn-pause-home" type="button">Về Home</button>
+        </div>
+      </div>
+    </div>
 
     <!-- WIN -->
     <div class="modal is-hidden" id="win-modal" role="dialog" aria-modal="true" aria-labelledby="win-title">
       <div class="modal__card">
         <div class="modal__burst" aria-hidden="true">🎉</div>
         <h2 id="win-title">Giỏi quá!</h2>
-        <p>Bé đã hoàn thành bảng Sudoku!</p>
+        <p id="win-message">Bé đã hoàn thành bảng Sudoku!</p>
+        <p class="win-points" id="win-points">+0 điểm</p>
         <div class="modal__actions">
           <button class="btn btn--primary" id="btn-again" type="button">Chơi lại</button>
           <button class="btn btn--ghost" id="btn-win-home" type="button">Về Home</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RETRY (too many mistakes) -->
+    <div class="modal is-hidden" id="retry-modal" role="dialog" aria-modal="true" aria-labelledby="retry-title">
+      <div class="modal__card">
+        <div class="modal__burst" aria-hidden="true">💪</div>
+        <h2 id="retry-title">Thử lại nào!</h2>
+        <p>Bé đã sai 3 lần rồi. Chơi ván mới nhé?</p>
+        <div class="modal__actions">
+          <button class="btn btn--primary" id="btn-retry" type="button">Chơi lại</button>
+          <button class="btn btn--ghost" id="btn-retry-home" type="button">Về Home</button>
         </div>
       </div>
     </div>
