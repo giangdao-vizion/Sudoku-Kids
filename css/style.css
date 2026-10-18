@@ -66,8 +66,8 @@ button {
 }
 
 @keyframes sky-drift {
-  from { filter: hue-rotate(0deg) saturate(1); }
-  to { filter: hue-rotate(8deg) saturate(1.08); }
+  from { transform: scale(1); }
+  to { transform: scale(1.04); }
 }
 
 .app {
@@ -171,7 +171,6 @@ button {
 
 .size-card__preview {
   display: grid;
-  grid-template-columns: repeat(4, 10px);
   gap: 3px;
   margin-bottom: 4px;
 }
@@ -181,6 +180,27 @@ button {
   height: 10px;
   border-radius: 3px;
   background: var(--mint);
+}
+
+.size-card__preview--grid2 {
+  grid-template-columns: repeat(2, 14px);
+  grid-template-rows: repeat(2, 14px);
+  gap: 4px;
+}
+
+.size-card__preview--grid2 span {
+  width: 14px;
+  height: 14px;
+}
+
+.size-card__preview--grid2 span:nth-child(1),
+.size-card__preview--grid2 span:nth-child(4) {
+  background: #7fd4ff;
+}
+
+.size-card__preview--grid2 span:nth-child(2),
+.size-card__preview--grid2 span:nth-child(3) {
+  background: #ffc93c;
 }
 
 .size-card__preview--row9 {
@@ -202,7 +222,12 @@ button {
   background:
     linear-gradient(var(--ink) 0 0) center/100% 2px no-repeat,
     linear-gradient(var(--ink) 0 0) center/2px 100% no-repeat,
-    linear-gradient(#7fd4ff, #7fd4ff);
+    conic-gradient(
+      #c8f3e8 0 90deg,
+      #ffe9a8 90deg 180deg,
+      #c8f3e8 180deg 270deg,
+      #ffe9a8 270deg 360deg
+    );
   border: 2px solid var(--ink);
   position: relative;
 }
@@ -223,7 +248,10 @@ button {
     linear-gradient(var(--ink) 0 0) 66% / 2px 100% no-repeat,
     linear-gradient(var(--ink) 0 0) 0 33% / 100% 2px no-repeat,
     linear-gradient(var(--ink) 0 0) 0 66% / 100% 2px no-repeat,
-    linear-gradient(#ffc93c, #ffc93c);
+    repeating-conic-gradient(
+      #ffe9a8 0% 25%,
+      #c8f3e8 0% 50%
+    ) 0 0 / 33.333% 33.333%;
 }
 
 .size-card__label {
@@ -412,20 +440,37 @@ button {
   max-width: 100%;
 }
 
+.board--2 {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  max-width: 280px;
+  padding: 8px;
+  background: var(--ink);
+  border-radius: 18px;
+}
+
 .board--4 {
   grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
+  gap: 2px;
   padding: 3px;
-  background: var(--ink);
   border-radius: 16px;
+  background:
+    linear-gradient(var(--ink), var(--ink)) center / 4px 100% no-repeat,
+    linear-gradient(var(--ink), var(--ink)) center / 100% 4px no-repeat,
+    var(--ink);
 }
 
 .board--9 {
   grid-template-columns: repeat(9, 1fr);
   gap: 2px;
   padding: 2px;
-  background: var(--ink);
   border-radius: 12px;
+  background:
+    linear-gradient(var(--ink), var(--ink)) 33.333% / 4px 100% no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 66.666% / 4px 100% no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 0 33.333% / 100% 4px no-repeat,
+    linear-gradient(var(--ink), var(--ink)) 0 66.666% / 100% 4px no-repeat,
+    var(--ink);
 }
 
 .cell {
@@ -452,27 +497,60 @@ button {
   box-shadow: 0 3px 0 rgba(27, 58, 75, 0.08);
 }
 
+.board--2 .cell {
+  border-radius: 16px;
+  font-size: clamp(1.8rem, 10vw, 2.4rem);
+  min-height: 88px;
+}
+
 .board--4 .cell {
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .board--9 .cell {
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: clamp(0.85rem, 3.8vw, 1.15rem);
   border-width: 0;
 }
 
-.cell--given {
+/* Alternating Sudoku regions (2×2 boxes / 3×3 boxes) — high contrast for kids */
+.cell--region-0 {
+  background: #b8ebff;
+}
+
+.cell--region-1 {
+  background: #ffe29a;
+}
+
+.cell--region-0.cell--given {
+  background: #7fd4ff;
+  color: #0b4f6c;
+}
+
+.cell--region-1.cell--given {
+  background: #ffc93c;
+  color: #6b4a00;
+}
+
+.cell--region-0.cell--editable:not(.cell--selected):not(.cell--ok):not(.cell--bad) {
+  background: #b8ebff;
+}
+
+.cell--region-1.cell--editable:not(.cell--selected):not(.cell--ok):not(.cell--bad) {
+  background: #ffe29a;
+}
+
+.cell--given:not(.cell--region-0):not(.cell--region-1) {
   background: var(--cell-given);
   color: var(--mint-deep);
 }
 
-.cell--editable {
+.cell--editable:not(.cell--region-0):not(.cell--region-1) {
   background: #fff;
 }
 
 .cell--selected {
-  background: var(--cell-pick);
+  background: var(--cell-pick) !important;
   border-color: var(--sun);
   transform: scale(1.04);
   z-index: 1;
@@ -480,12 +558,12 @@ button {
 }
 
 .cell--ok {
-  background: var(--cell-ok);
+  background: var(--cell-ok) !important;
   animation: pop-ok 0.35s ease;
 }
 
 .cell--bad {
-  background: var(--cell-bad);
+  background: var(--cell-bad) !important;
   animation: shake 0.35s ease;
 }
 
@@ -508,16 +586,6 @@ button {
 @keyframes hint-glow {
   0% { box-shadow: 0 0 0 0 rgba(123, 140, 255, 0.7); background: #e4e8ff; }
   100% { box-shadow: 0 0 0 10px transparent; }
-}
-
-/* Soft box separators on 9×9 */
-.board--9 .cell:nth-child(3n):not(:nth-child(9n)) {
-  border-right: 2px solid rgba(255, 253, 247, 0.85);
-}
-
-.board--9 .cell:nth-child(n+19):nth-child(-n+27),
-.board--9 .cell:nth-child(n+46):nth-child(-n+54) {
-  border-bottom: 2px solid rgba(255, 253, 247, 0.85);
 }
 
 /* PICKER */
@@ -547,6 +615,10 @@ button {
 .picker__nums {
   display: grid;
   gap: 8px;
+}
+
+.picker__nums--2 {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .picker__nums--4 {

@@ -6,9 +6,17 @@
     "9x9": { easy: 42, medium: 32, hard: 24 },
   };
 
-  const LINE_CLUES = {
+  const SIMPLE_CLUES = {
     "1x4": { min: 1, max: 2 },
     "1x9": { min: 3, max: 5 },
+  };
+
+  /** sizeKey -> actual board geometry (1×4 = 2 hàng × 2 cột) */
+  const SIZE_CONFIG = {
+    "1x4": { rows: 2, cols: 2, maxNum: 2, boxRows: 1, boxCols: 1 },
+    "1x9": { rows: 1, cols: 9, maxNum: 9, boxRows: 1, boxCols: 1 },
+    "4x4": { rows: 4, cols: 4, maxNum: 4, boxRows: 2, boxCols: 2 },
+    "9x9": { rows: 9, cols: 9, maxNum: 9, boxRows: 3, boxCols: 3 },
   };
 
   const state = {
@@ -45,13 +53,15 @@
     btnWinHome: document.getElementById("btn-win-home"),
   };
 
-  function parseSize(key) {
-    const [r, c] = key.split("x").map(Number);
-    return { rows: r, cols: c };
-  }
-
   function needsDifficulty(sizeKey) {
     return sizeKey === "4x4" || sizeKey === "9x9";
+  }
+
+  function regionTone(r, c) {
+    if (state.boxRows <= 1 && state.boxCols <= 1) return 0;
+    const br = Math.floor(r / state.boxRows);
+    const bc = Math.floor(c / state.boxCols);
+    return (br + bc) % 2;
   }
 
   function shuffle(arr) {
@@ -111,7 +121,14 @@
 
   function generateSquareSolution() {
     const grid = Array(state.rows * state.cols).fill(0);
-    // Seed diagonal boxes for faster fill on 9x9
+
+    if (state.rows === 2 && state.cols === 2) {
+      // Tiny 2×2 latin square (numbers 1–2)
+      solveGrid(grid);
+      return grid;
+    }
+
+    // Seed diagonal boxes for faster fill on 4×4 / 9×9
     if (state.rows === 9) {
       for (let b = 0; b < 3; b += 1) {
         const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -133,8 +150,8 @@
         }
       }
     }
+
     if (!solveGrid(grid)) {
-      // Fallback: blank solve
       const blank = Array(state.rows * state.cols).fill(0);
       solveGrid(blank);
       return blank;
@@ -146,8 +163,8 @@
     const puzzle = solution.slice();
     const positions = shuffle([...Array(puzzle.length)].map((_, i) => i));
 
-    if (state.rows === 1) {
-      const range = LINE_CLUES[state.sizeKey];
+    if (!needsDifficulty(state.sizeKey)) {
+      const range = SIMPLE_CLUES[state.sizeKey];
       const keep = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
       const removeCount = puzzle.length - keep;
       for (let i = 0; i < removeCount; i += 1) {
@@ -168,24 +185,18 @@
   }
 
   function configureBoard(sizeKey, difficulty) {
-    const { rows, cols } = parseSize(sizeKey);
+    const cfg = SIZE_CONFIG[sizeKey];
     state.sizeKey = sizeKey;
     state.difficulty = difficulty;
-    state.rows = rows;
-    state.cols = cols;
-    state.maxNum = Math.max(rows, cols);
+    state.rows = cfg.rows;
+    state.cols = cfg.cols;
+    state.maxNum = cfg.maxNum;
+    state.boxRows = cfg.boxRows;
+    state.boxCols = cfg.boxCols;
 
-    if (rows === 1) {
-      state.boxRows = 1;
-      state.boxCols = 1;
+    if (cfg.rows === 1) {
       state.solution = generateLineSolution();
-    } else if (rows === 4) {
-      state.boxRows = 2;
-      state.boxCols = 2;
-      state.solution = generateSquareSolution();
     } else {
-      state.boxRows = 3;
-      state.boxCols = 3;
       state.solution = generateSquareSolution();
     }
 
@@ -280,8 +291,13 @@
     }
 
     el.picker.classList.remove("is-hidden");
-    el.pickerNums.className =
-      "picker__nums " + (state.maxNum <= 4 ? "picker__nums--4" : "picker__nums--9");
+    const pickerClass =
+      state.maxNum <= 2
+        ? "picker__nums--2"
+        : state.maxNum <= 4
+          ? "picker__nums--4"
+          : "picker__nums--9";
+    el.pickerNums.className = `picker__nums ${pickerClass}`;
     el.pickerNums.innerHTML = "";
 
     const used = usedNumbersInUnit(state.selected);
@@ -305,7 +321,9 @@
     el.board.innerHTML = "";
     el.board.className = "board";
 
-    if (state.rows === 1) {
+    if (state.sizeKey === "1x4") {
+      el.board.classList.add("board--2");
+    } else if (state.rows === 1) {
       el.board.classList.add("board--row");
     } else if (state.rows === 4) {
       el.board.classList.add("board--4");
@@ -313,12 +331,19 @@
       el.board.classList.add("board--9");
     }
 
+    const hasRegions = state.boxRows > 1 || state.boxCols > 1;
+
     for (let i = 0; i < state.board.length; i += 1) {
       const cell = document.createElement("button");
       cell.type = "button";
       cell.className = "cell";
       cell.dataset.index = String(i);
       cell.setAttribute("role", "gridcell");
+
+      const { r, c } = cellRC(i);
+      if (hasRegions) {
+        cell.classList.add(`cell--region-${regionTone(r, c)}`);
+      }
 
       const value = state.board[i];
       cell.textContent = value ? String(value) : "";
