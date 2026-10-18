@@ -114,13 +114,6 @@
     return sizeKey === "4x4" || sizeKey === "9x9";
   }
 
-  function regionTone(r, c) {
-    if (state.boxRows <= 1 && state.boxCols <= 1) return 0;
-    const br = Math.floor(r / state.boxRows);
-    const bc = Math.floor(c / state.boxCols);
-    return (br + bc) % 2;
-  }
-
   function shuffle(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i -= 1) {
@@ -434,17 +427,12 @@
     else if (state.sizeKey === "4x4") el.board.classList.add("board--4");
     else el.board.classList.add("board--9");
 
-    const hasRegions = state.boxRows > 1 || state.boxCols > 1;
-
     for (let i = 0; i < state.board.length; i += 1) {
       const cell = document.createElement("button");
       cell.type = "button";
       cell.className = "cell";
       cell.dataset.index = String(i);
       cell.setAttribute("role", "gridcell");
-
-      const { r, c } = cellRC(i);
-      if (hasRegions) cell.classList.add(`cell--region-${regionTone(r, c)}`);
 
       const value = state.board[i];
       cell.textContent = value ? String(value) : "";
