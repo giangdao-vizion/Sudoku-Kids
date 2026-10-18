@@ -203,14 +203,16 @@ button {
   background: #ffc93c;
 }
 
-.size-card__preview--row9 {
-  grid-template-columns: repeat(9, 6px);
-  gap: 2px;
+.size-card__preview--grid3 {
+  grid-template-columns: repeat(3, 11px);
+  grid-template-rows: repeat(3, 11px);
+  gap: 3px;
 }
 
-.size-card__preview--row9 span {
-  width: 6px;
-  height: 10px;
+.size-card__preview--grid3 span {
+  width: 11px;
+  height: 11px;
+  background: #7fd4ff;
 }
 
 .size-card__preview--grid4,
@@ -449,6 +451,15 @@ button {
   border-radius: 18px;
 }
 
+.board--3 {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-width: 320px;
+  padding: 8px;
+  background: var(--ink);
+  border-radius: 18px;
+}
+
 .board--4 {
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;
@@ -501,6 +512,18 @@ button {
   border-radius: 16px;
   font-size: clamp(1.8rem, 10vw, 2.4rem);
   min-height: 88px;
+}
+
+.board--3 .cell {
+  border-radius: 14px;
+  font-size: clamp(1.5rem, 8vw, 2rem);
+  min-height: 72px;
+  background: #e8f8ff;
+}
+
+.board--3 .cell--given {
+  background: #b8ebff;
+  color: #0b4f6c;
 }
 
 .board--4 .cell {
@@ -619,6 +642,10 @@ button {
 
 .picker__nums--2 {
   grid-template-columns: repeat(2, 1fr);
+}
+
+.picker__nums--3 {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .picker__nums--4 {

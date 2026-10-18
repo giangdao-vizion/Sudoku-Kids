@@ -11,10 +11,13 @@
     "1x9": { min: 3, max: 5 },
   };
 
-  /** sizeKey -> actual board geometry (1×4 = 2 hàng × 2 cột) */
+  /** sizeKey -> actual board geometry
+   *  1×4 = 2 hàng × 2 cột (1 khu, số 1–2)
+   *  1×9 = 3 hàng × 3 cột (1 khu, số 1–3)
+   */
   const SIZE_CONFIG = {
     "1x4": { rows: 2, cols: 2, maxNum: 2, boxRows: 1, boxCols: 1 },
-    "1x9": { rows: 1, cols: 9, maxNum: 9, boxRows: 1, boxCols: 1 },
+    "1x9": { rows: 3, cols: 3, maxNum: 3, boxRows: 1, boxCols: 1 },
     "4x4": { rows: 4, cols: 4, maxNum: 4, boxRows: 2, boxCols: 2 },
     "9x9": { rows: 9, cols: 9, maxNum: 9, boxRows: 3, boxCols: 3 },
   };
@@ -115,15 +118,11 @@
     return false;
   }
 
-  function generateLineSolution() {
-    return shuffle([...Array(state.maxNum)].map((_, i) => i + 1));
-  }
-
   function generateSquareSolution() {
     const grid = Array(state.rows * state.cols).fill(0);
 
-    if (state.rows === 2 && state.cols === 2) {
-      // Tiny 2×2 latin square (numbers 1–2)
+    // Mini boards (1×4 / 1×9): one region only — latin square by rows & cols
+    if (state.boxRows <= 1 && state.boxCols <= 1) {
       solveGrid(grid);
       return grid;
     }
@@ -193,13 +192,7 @@
     state.maxNum = cfg.maxNum;
     state.boxRows = cfg.boxRows;
     state.boxCols = cfg.boxCols;
-
-    if (cfg.rows === 1) {
-      state.solution = generateLineSolution();
-    } else {
-      state.solution = generateSquareSolution();
-    }
-
+    state.solution = generateSquareSolution();
     state.puzzle = carvePuzzle(state.solution);
     state.board = state.puzzle.slice();
     state.given = state.puzzle.map((v) => v !== 0);
@@ -294,9 +287,11 @@
     const pickerClass =
       state.maxNum <= 2
         ? "picker__nums--2"
-        : state.maxNum <= 4
-          ? "picker__nums--4"
-          : "picker__nums--9";
+        : state.maxNum === 3
+          ? "picker__nums--3"
+          : state.maxNum <= 4
+            ? "picker__nums--4"
+            : "picker__nums--9";
     el.pickerNums.className = `picker__nums ${pickerClass}`;
     el.pickerNums.innerHTML = "";
 
@@ -323,8 +318,8 @@
 
     if (state.sizeKey === "1x4") {
       el.board.classList.add("board--2");
-    } else if (state.rows === 1) {
-      el.board.classList.add("board--row");
+    } else if (state.sizeKey === "1x9") {
+      el.board.classList.add("board--3");
     } else if (state.rows === 4) {
       el.board.classList.add("board--4");
     } else {
